@@ -1,0 +1,141 @@
+<div class="page-heading">
+  <div>
+    <div class="eyebrow">INSIGHTS WORTH SHARING</div>
+    <h1>Reports<span class="heading-dot">.</span></h1>
+    <p>Build a focused view. Save it. Make your next decision.</p>
+  </div>
+  @if (auth.user()?.role !== "VIEWER") {
+    <button class="btn primary" (click)="create()" [disabled]="busy()">
+      <prism-icon name="plus" />New report
+    </button>
+  }
+</div>
+@if (error()) {
+  <div class="error-box" role="alert">{{ error() }}</div>
+}
+<div class="reports-grid">
+  <section class="panel report-list">
+    <div class="panel-header">
+      <h2>Saved reports</h2>
+      <span class="mode-tag">{{ reports().length }}</span>
+    </div>
+    @for (report of reports(); track report.id) {
+      <button
+        class="saved-report"
+        [class.selected]="selected() === report.id"
+        (click)="select(report)"
+        [disabled]="busy()"
+      >
+        <prism-icon name="file" /><span
+          ><strong>{{ report.name }}</strong
+          ><small
+            >{{ report.group }} · {{ report.from }} — {{ report.to }}</small
+          ></span
+        ><prism-icon name="chevron" />
+      </button>
+    } @empty {
+      <div class="empty-state">No saved reports yet.</div>
+    }
+  </section>
+  <div>
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>{{ selected() ? "Report configuration" : "Create a report" }}</h2>
+          <p>Choose a metric, reporting period and grouping.</p>
+        </div>
+      </div>
+      <form [formGroup]="form" (ngSubmit)="save()" class="report-form">
+        <fieldset [disabled]="busy() || auth.user()?.role === 'VIEWER'">
+          <label class="full"
+            >Report name<input
+              formControlName="name"
+              placeholder="Monthly revenue overview" /></label
+          ><label
+            >Metric<select formControlName="metric">
+              @for (metric of metricList; track metric.key) {
+                <option [value]="metric.key">{{ metric.label }}</option>
+              }
+            </select></label
+          ><label
+            >Group by<select formControlName="group">
+              <option value="day">Day</option>
+              <option value="week">Week</option>
+              <option value="month">Month</option>
+            </select></label
+          ><label>From<input type="date" formControlName="from" /></label
+          ><label>Through<input type="date" formControlName="to" /></label
+          ><label class="full"
+            >Source<select formControlName="sourceId">
+              <option value="">All applicable sources</option>
+              @for (source of sources(); track source.id) {
+                <option [value]="source.id">{{ source.name }}</option>
+              }
+            </select></label
+          >
+        </fieldset>
+        <p class="definition-note">{{ metricDescription() }}</p>
+        <div class="form-actions">
+          <button
+            type="button"
+            class="btn"
+            [disabled]="
+              busy() ||
+              form.invalid ||
+              (!selected() && auth.user()?.role === 'VIEWER')
+            "
+            (click)="showPreview()"
+          >
+            Preview report
+          </button>
+          @if (auth.user()?.role !== "VIEWER") {
+            <button class="btn primary" [disabled]="busy() || form.invalid">
+              Save report
+            </button>
+            @if (selected()) {
+              <button
+                type="button"
+                class="text-button danger"
+                (click)="remove()"
+                [disabled]="busy()"
+              >
+                Delete report
+              </button>
+            }
+          }
+        </div>
+      </form>
+    </section>
+    @if (preview(); as result) {
+      <section class="panel report-preview">
+        <div class="panel-header">
+          <div>
+            <h2>Report preview</h2>
+            <p>
+              {{ result.period.from }} — {{ result.period.to }} ·
+              {{ result.period.timezone }}
+            </p>
+          </div>
+          @if (selected() && auth.user()?.role !== "VIEWER") {
+            <button
+              class="btn"
+              (click)="export()"
+              [disabled]="busy() || form.dirty"
+              title="Export the saved report. Save configuration changes before exporting."
+            >
+              <prism-icon name="download" />Export CSV
+            </button>
+          }
+        </div>
+        <prism-chart
+          [labels]="labels()"
+          [series]="series()"
+          [currency]="
+            previewMetric() !== 'orders' && previewMetric() !== 'ratio'
+          "
+          label="Saved report preview"
+        />
+      </section>
+    }
+  </div>
+</div>

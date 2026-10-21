@@ -1,0 +1,25 @@
+{
+  "data": {
+    "orders": {
+      "nodes": [
+        {
+          "id": "gid://shopify/Order/1001",
+          "createdAt": "2026-10-19T12:00:00Z",
+          "updatedAt": "2026-10-20T10:00:00Z",
+          "cancelledAt": null,
+          "displayFinancialStatus": "PARTIALLY_REFUNDED",
+          "totalPriceSet": {
+            "shopMoney": { "amount": "149.50", "currencyCode": "USD" }
+          },
+          "totalDiscountsSet": {
+            "shopMoney": { "amount": "10.00", "currencyCode": "USD" }
+          },
+          "totalRefundedSet": {
+            "shopMoney": { "amount": "25.00", "currencyCode": "USD" }
+          }
+        }
+      ],
+      "pageInfo": { "hasNextPage": true, "endCursor": "fixture-cursor-001" }
+    }
+  }
+}

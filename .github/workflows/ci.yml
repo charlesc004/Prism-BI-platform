@@ -1,0 +1,51 @@
+name: PRISM checks
+on: [push, pull_request]
+jobs:
+  windows-dev-server:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: ".node-version", cache: npm }
+      - run: npm ci
+      - run: npx playwright install chromium
+      - run: npm run test:dev-server
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          {
+            POSTGRES_USER: prism,
+            POSTGRES_PASSWORD: prism_local,
+            POSTGRES_DB: prism_test,
+          }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U prism -d prism_test" --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://prism:prism_local@127.0.0.1:5432/prism_test
+      REDIS_URL: redis://127.0.0.1:6379
+      WEB_ORIGIN: http://localhost:4400
+      NODE_ENV: test
+      SEED_PASSWORD: PrismAccess2026!
+      SEED_REFERENCE_DATE: "2026-10-20"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: ".node-version", cache: npm }
+      - run: npm ci
+      - run: npm run db:generate && npm run db:migrate
+      - run: npm run lint && npm run build && npm test && npm run test:web && npm run test:integration
+      - run: npm run db:seed
+      - run: npx playwright install --with-deps chromium
+      - run: npm run worker > /tmp/prism-worker.log 2>&1 &
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: playwright-traces, path: test-results/ }

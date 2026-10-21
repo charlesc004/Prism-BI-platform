@@ -1,0 +1,49 @@
+{
+  "name": "prism",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "predev": "node scripts/check-runtime.mjs",
+    "dev": "concurrently --kill-others -n api,web,worker \"npm run dev -w @prism/api\" \"npm run dev -w @prism/web\" \"npm run worker -w @prism/api\"",
+    "test:dev-server": "node --test tests/tooling/dev-server.test.mjs",
+    "build": "npm run build -w @prism/contracts && npm run build -w @prism/api && npm run build -w @prism/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "playwright test",
+    "test:compose": "node scripts/workspace-smoke.mjs",
+    "test:native": "node scripts/workspace-smoke.mjs --native",
+    "db:generate": "npm run db:generate -w @prism/api",
+    "db:migrate": "npm run db:migrate -w @prism/api",
+    "db:seed": "npm run db:seed -w @prism/api",
+    "worker": "npm run worker -w @prism/api",
+    "test:web": "npm run test -w @prism/web"
+  },
+  "devDependencies": {
+    "@angular/build": "^22.2.0",
+    "@eslint/js": "^9.39.0",
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^24.10.0",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.39.0",
+    "jsdom": "^29.1.1",
+    "node": "24.22.0",
+    "prettier": "^3.6.2",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^4.0.0"
+  },
+  "engines": {
+    "node": "^24.22.0 || >=26.0.0"
+  },
+  "overrides": {
+    "vite": "8.3.4"
+  }
+}

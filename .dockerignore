@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+**/dist
+**/.angular
+.git
+.env
+.local
+playwright-report
+test-results
+apps/api/src/generated
+.github
+README.md
+IMPLEMENTATION.md
+QUALITY_REVIEW.md
+DOCKER_VERIFICATION.md
+docs/screenshots

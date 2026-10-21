@@ -1,0 +1,13 @@
+{
+  "data": [
+    {
+      "id": "ch_fixture_001",
+      "created": 1792411200,
+      "currency": "usd",
+      "amount": 14950,
+      "amount_refunded": 2500,
+      "status": "succeeded"
+    }
+  ],
+  "has_more": true
+}

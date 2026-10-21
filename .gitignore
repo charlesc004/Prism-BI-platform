@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.angular/
+.env
+coverage/
+test-results/
+playwright-report/
+.local/
+apps/api/src/generated/
+*.log

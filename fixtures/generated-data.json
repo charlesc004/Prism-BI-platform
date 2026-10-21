@@ -1,0 +1,13 @@
+{
+  "business": "Northstar Goods",
+  "seed": 731,
+  "days": 395,
+  "pageSize": 100,
+  "channels": ["Google Ads", "Meta Ads", "Email", "Affiliates"],
+  "campaigns": [
+    "Everyday essentials",
+    "Seasonal collection",
+    "The weekend edit",
+    "Customer favorites"
+  ]
+}

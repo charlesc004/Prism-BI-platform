@@ -1,0 +1,110 @@
+name: prism
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: prism
+      POSTGRES_PASSWORD: prism_local
+      POSTGRES_DB: prism
+    restart: unless-stopped
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prism -d prism"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--maxmemory-policy",
+        "noeviction",
+      ]
+    restart: unless-stopped
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  init:
+    image: prism-api:local
+    pull_policy: never
+    environment: &api-env
+      NODE_ENV: development
+      DATABASE_URL: postgresql://prism:prism_local@postgres:5432/prism
+      REDIS_URL: redis://redis:6379
+      WEB_ORIGIN: http://localhost:8080
+      SEED_REFERENCE_DATE: ${SEED_REFERENCE_DATE:-2026-10-20}
+      SEED_PASSWORD: ${SEED_PASSWORD:-PrismAccess2026!}
+      SHOPIFY_DOMAIN: ${SHOPIFY_DOMAIN:-}
+      SHOPIFY_TOKEN: ${SHOPIFY_TOKEN:-}
+      SHOPIFY_API_VERSION: ${SHOPIFY_API_VERSION:-2026-10}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    command: ["sh", "-c", "npm run db:migrate && npm run db:seed"]
+  api:
+    image: prism-api:local
+    build:
+      context: .
+      dockerfile: infrastructure/Dockerfile
+      target: api
+    restart: unless-stopped
+    environment: *api-env
+    depends_on:
+      init: { condition: service_completed_successfully }
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  worker:
+    stop_grace_period: 2m
+    image: prism-api:local
+    pull_policy: never
+    restart: unless-stopped
+    environment: *api-env
+    command: ["node", "--import", "tsx", "apps/api/src/jobs/worker.ts"]
+    depends_on:
+      init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "node", "infrastructure/healthcheck-worker.mjs"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/Dockerfile
+      target: web
+    ports: ["127.0.0.1:8080:80"]
+    restart: unless-stopped
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1/health/ready",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+volumes:
+  postgres-data:
+  redis-data:

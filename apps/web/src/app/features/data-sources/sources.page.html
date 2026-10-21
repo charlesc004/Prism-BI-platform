@@ -1,0 +1,232 @@
+<div class="page-heading">
+  <div>
+    <div class="eyebrow">BETTER TOGETHER</div>
+    <h1>Data sources<span class="heading-dot">.</span></h1>
+    <p>Connect your business. Keep every insight up to date.</p>
+  </div>
+  <a class="btn" routerLink="/synchronization"
+    ><prism-icon name="clock" />Sync history</a
+  >
+</div>
+@if (error()) {
+  <div class="error-box" role="alert">
+    {{ error() }}<button class="text-button" (click)="load()">Retry</button>
+  </div>
+}
+<div class="info-banner">
+  <prism-icon name="help" /><span
+    ><strong>Source availability.</strong> Generated datasets and external
+    connections share the ingestion pipeline. External providers require
+    server-side credentials.</span
+  >
+</div>
+<div class="sources-grid">
+  @for (source of sources(); track source.id) {
+    <section class="panel source-card">
+      <div class="source-card-top">
+        <span
+          class="provider-logo large"
+          [class.stripe]="source.provider === 'STRIPE'"
+          [class.csv]="source.provider === 'CSV'"
+          >{{
+            source.provider === "SHOPIFY"
+              ? "S"
+              : source.provider === "STRIPE"
+                ? "s"
+                : "↥"
+          }}</span
+        ><span class="mode-tag" [class.live]="source.mode === 'LIVE'">{{
+          source.mode === "GENERATED"
+            ? "Generated"
+            : source.provider === "CSV"
+              ? "File
+        upload"
+              : "Live adapter"
+        }}</span>
+      </div>
+      <h2>{{ source.name }}</h2>
+      <p class="muted">
+        {{
+          source.provider === "SHOPIFY"
+            ? "Commerce orders, discounts &
+      refunds"
+            : source.provider === "STRIPE"
+              ? "Payments & refund
+      reconciliation"
+              : "Marketing campaigns, spend & reach"
+        }}
+      </p>
+      <div class="source-card-status">
+        <prism-status [value]="source.status" /><span
+          >{{
+            source._count.orders +
+              source._count.payments +
+              source._count.campaigns | number
+          }}
+          records</span
+        >
+      </div>
+      <div class="source-meta">
+        <span>Last successful sync</span
+        ><strong>{{
+          source.lastSuccess
+            ? (source.lastSuccess | date: "MMM d, y · h:mm a")
+            : "No synchronization yet"
+        }}</strong>
+      </div>
+      <div class="source-actions">
+        <button class="btn" (click)="openDetail(source)">View details</button>
+        @if (
+          auth.user()?.role === "ADMIN" &&
+          source.status !== "NOT_CONFIGURED" &&
+          !(source.provider === "CSV" && source.mode === "LIVE")
+        ) {
+          <button
+            class="btn primary"
+            [disabled]="busy() === source.id || source.status === 'SYNCING'"
+            (click)="sync(source)"
+          >
+            <prism-icon name="sync" />{{
+              source.status === "SYNCING"
+                ? "Syncing…"
+                : "Sync
+        now"
+            }}
+          </button>
+        }
+      </div>
+    </section>
+  } @empty {
+    <div class="empty-state">Loading data sources…</div>
+  }
+</div>
+<section class="panel import-panel">
+  <div class="panel-header">
+    <div>
+      <h2>Import campaign data</h2>
+      <p>CSV uploads are validated and processed by the background worker.</p>
+    </div>
+    @if (auth.user()?.role !== "VIEWER") {
+      <label class="btn primary upload-label"
+        ><prism-icon name="upload" />{{
+          uploading() ? "Uploading…" : "Upload CSV"
+        }}<input
+          type="file"
+          accept=".csv"
+          [disabled]="uploading()"
+          (change)="upload($event)"
+      /></label>
+    }
+  </div>
+  <div class="csv-format">
+    <strong>Required format</strong
+    ><code>date,campaign,channel,spend,clicks,impressions</code
+    ><span
+      >USD · up to 2 MB and 10,000 rows · optional currency column must be
+      USD</span
+    >
+  </div>
+  @for (batch of imports(); track batch.id) {
+    <div class="import-row">
+      <prism-icon name="file" />
+      <div>
+        <strong>{{ batch.filename }}</strong>
+        <p>
+          {{ batch.imported }} imported · {{ batch.rejected }} rejected ·
+          {{ batch.createdAt | date: "MMM d, h:mm a" }}
+        </p>
+        @if (batch.errors.length) {
+          <details>
+            <summary>Row validation errors</summary>
+            @for (error of batch.errors; track $index) {
+              <p>Row {{ error.row }}: {{ error.message }}</p>
+            }
+          </details>
+        }
+      </div>
+      <prism-status [value]="batch.status" />
+    </div>
+  } @empty {
+    <div class="empty-state compact">Your imported files will appear here.</div>
+  }
+</section>
+@if (detail(); as source) {
+  <div class="modal-backdrop" (click)="detail.set(null)">
+    <section
+      class="modal"
+      cdkTrapFocus
+      [cdkTrapFocusAutoCapture]="true"
+      (keydown.escape)="detail.set(null)"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Source details"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="panel-header">
+        <h2>{{ source.name }}</h2>
+        <button
+          class="icon-button"
+          aria-label="Close details"
+          (click)="detail.set(null)"
+        >
+          <prism-icon name="close" />
+        </button>
+      </div>
+      <div class="modal-body">
+        <prism-status [value]="source.status" />
+        <p>
+          {{
+            source.mode === "GENERATED"
+              ? "Deterministic generated data, processed through
+        paginated ingestion and idempotent
+        upserts."
+              : source.provider === "CSV"
+                ? "Upload a campaign CSV using the
+        documented format."
+                : "Set server-side credentials in .env, then restart
+        the API and worker. Credentials never enter the browser. Live adapters
+        have not been verified against provider accounts."
+          }}
+        </p>
+        <dl>
+          <dt>Mode</dt>
+          <dd>{{ source.mode }}</dd>
+          <dt>Last success</dt>
+          <dd>{{ source.lastSuccess | date: "medium" }}</dd>
+          <dt>Checkpoint</dt>
+          <dd>{{ source.cursor || "Not started" }}</dd>
+        </dl>
+        @if (
+          auth.user()?.role === "ADMIN" &&
+          source.status !== "NOT_CONFIGURED" &&
+          !(source.provider === "CSV" && source.mode === "LIVE")
+        ) {
+          <label
+            >Recurring synchronization<select
+              aria-label="Recurring synchronization"
+              [ngModel]="currentSchedule()"
+              [disabled]="scheduleBusy()"
+              (ngModelChange)="schedule(source.id, $event)"
+            >
+              <option value="off">Off</option>
+              <option value="hourly">Hourly</option>
+              <option value="daily">Daily</option>
+            </select></label
+          >
+        }
+        <h3>Recent runs</h3>
+        @for (run of source.runs; track run.id) {
+          <div class="detail-run">
+            <prism-status [value]="run.status" /><span
+              >{{ run.processed }} processed · {{ run.created }} created ·
+              {{ run.updated }} updated</span
+            >
+            @if (run.error) {
+              <p class="error-text">{{ run.error }}</p>
+            }
+          </div>
+        }
+      </div>
+    </section>
+  </div>
+}

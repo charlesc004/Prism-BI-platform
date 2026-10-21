@@ -1,0 +1,97 @@
+<div
+  class="app-shell"
+  [class.nav-open]="mobile()"
+  [class.sidebar-collapsed]="collapsed()"
+>
+  <aside class="sidebar">
+    <a class="brand" routerLink="/overview" aria-label="PRISM overview"
+      ><prism-brand
+    /></a>
+    <div class="workspace-switch">
+      <span class="workspace-avatar">N</span
+      ><span
+        ><strong>{{ workspace.settings()?.name || "Workspace" }}</strong
+        ><small>Business workspace</small></span
+      ><prism-icon name="down" />
+    </div>
+    <div class="nav-caption">WORKSPACE</div>
+    <nav aria-label="Main navigation">
+      @for (item of nav; track item.path) {
+        <a [routerLink]="'/' + item.path" routerLinkActive="active"
+          ><prism-icon [name]="item.icon" />{{ item.label }}
+          @if (item.path === "data-sources") {
+            <span class="nav-count">{{ sourceCount() ?? "—" }}</span>
+          }
+        </a>
+      }
+    </nav>
+    <div class="sidebar-bottom">
+      <a class="settings-link" routerLink="/settings" routerLinkActive="active"
+        ><prism-icon name="settings" />Team & Settings</a
+      >
+      <div class="workspace-panel">
+        <span class="workspace-dot"></span> Workspace insights
+        <p>Commerce, payments and marketing, connected.</p>
+        <a routerLink="/data-sources"
+          >Explore your data sources <span>↗</span></a
+        >
+      </div>
+      <div class="sidebar-user">
+        <span class="avatar">{{ auth.user()?.name?.slice(0, 1) }}</span>
+        <div>
+          <strong>{{ auth.user()?.name }}</strong
+          ><small>{{ auth.user()?.role?.toLowerCase() }}</small>
+        </div>
+        <button aria-label="Sign out" title="Sign out" (click)="logout()">
+          <prism-icon name="logout" />
+        </button>
+      </div>
+    </div>
+  </aside>
+  @if (mobile()) {
+    <button
+      class="nav-backdrop"
+      aria-label="Close navigation"
+      (click)="mobile.set(false)"
+    ></button>
+  }
+  <div class="main-shell">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <button
+          class="mobile-toggle"
+          aria-label="Toggle navigation"
+          (click)="toggleNav()"
+        >
+          <prism-icon name="menu" /></button
+        ><span>Workspace</span><prism-icon name="chevron" /><strong>{{
+          title()
+        }}</strong>
+      </div>
+      <div class="topbar-right">
+        <span class="workspace-tag"><i></i> Business workspace</span
+        ><a
+          routerLink="/synchronization"
+          aria-label="View background jobs"
+          class="topbar-job"
+          ><prism-icon name="clock" /></a
+        ><span class="topbar-divider"></span
+        ><span class="avatar small">{{ auth.user()?.name?.slice(0, 1) }}</span>
+      </div>
+    </header>
+    <main><router-outlet /></main>
+    <footer class="app-footer">
+      <span
+        >PRISM <span class="muted">/</span> Clarity in every connection.</span
+      ><span>USD · Workspace reporting timezone</span>
+    </footer>
+  </div>
+  @if (api.notice()) {
+    <div class="toast" role="alert">
+      {{ api.notice()
+      }}<button aria-label="Dismiss message" (click)="api.notice.set('')">
+        ×
+      </button>
+    </div>
+  }
+</div>

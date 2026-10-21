@@ -1,0 +1,230 @@
+<section class="overview-intro">
+  <div class="page-heading">
+    <div>
+      <div class="eyebrow">THE BIG PICTURE / YOUR WORKSPACE</div>
+      <h1>Overview <span class="heading-dot">.</span></h1>
+      <p>A fresh perspective on the business you’re building.</p>
+    </div>
+    @if (auth.user()?.role !== "VIEWER") {
+      <button class="btn" (click)="export()">
+        <prism-icon name="download" />Export data
+      </button>
+    }
+  </div>
+  <div class="overview-toolbar">
+    <div class="live-context">
+      <span class="status-dot"></span
+      ><strong>{{ workspace.settings()?.name || "Workspace" }}</strong
+      ><span class="muted">/</span><span>Sales & growth</span>
+    </div>
+    <prism-date-range [range]="range()" (changed)="changeRange($event)" />
+  </div>
+</section>
+@if (error()) {
+  <div class="error-box" role="alert">
+    {{ error() }}<button class="text-button" (click)="load()">Try again</button>
+  </div>
+}
+@if (loading() && !data()) {
+  <div class="metrics-grid">
+    @for (card of cards; track card.metric) {
+      <div class="skeleton metric-skeleton"></div>
+    }
+  </div>
+  <div class="skeleton chart-skeleton"></div>
+}
+@if (data(); as result) {
+  @for (warning of result.warnings; track warning) {
+    <div class="info-banner" role="status">
+      <prism-icon name="clock" />{{ warning }}
+    </div>
+  }
+  <div class="metrics-grid" [class.refreshing]="loading()">
+    @for (card of cards; track card.metric) {
+      <prism-metric
+        [metric]="card.metric"
+        [icon]="card.icon"
+        [data]="result.summary[card.metric]"
+      />
+    }
+  </div>
+  <div class="chart-grid">
+    <section class="panel revenue-panel">
+      <div class="panel-header">
+        <div>
+          <h2>Revenue overview</h2>
+          <p>Performance across your reporting period</p>
+        </div>
+        <div class="segmented">
+          <button
+            [class.active]="active() === 'revenue'"
+            (click)="active.set('revenue')"
+          >
+            Revenue</button
+          ><button
+            [class.active]="active() === 'orders'"
+            (click)="active.set('orders')"
+          >
+            Orders</button
+          ><button
+            [class.active]="active() === 'refunds'"
+            (click)="active.set('refunds')"
+          >
+            Refunds
+          </button>
+        </div>
+      </div>
+      <div class="chart-legend">
+        <i class="legend-dot"></i
+        >{{
+          active() === "revenue"
+            ? "Net
+      revenue"
+            : active() === "orders"
+              ? "Order count"
+              : "Refund amount"
+        }}<span class="muted"
+          >·
+          {{
+            result.period.canonical === "SHOPIFY"
+              ? "Order-based"
+              : "Payment-based"
+          }}
+          revenue</span
+        >
+      </div>
+      <prism-chart
+        [labels]="labels()"
+        [series]="series()"
+        [currency]="active() !== 'orders'"
+        label="Revenue, orders or refunds over the reporting period"
+      />
+      <div class="panel-footnote">
+        <prism-icon name="help" />Revenue uses one canonical source. Orders and
+        payments are never added together.
+      </div>
+    </section>
+    <section class="panel spend-panel">
+      <div class="panel-header">
+        <div>
+          <h2>Spend by channel</h2>
+          <p>Where your marketing budget goes</p>
+        </div>
+        <span class="small-label">USD</span>
+      </div>
+      <prism-chart
+        type="bar"
+        [labels]="channelLabels()"
+        [series]="spendSeries()"
+        label="Marketing spend by channel in USD"
+      />
+      <div class="panel-footnote">
+        Blended spend · no campaign attribution implied
+      </div>
+    </section>
+  </div>
+  <div class="connection-strip">
+    <div class="connection-strip-icon"><prism-icon name="database" /></div>
+    <div>
+      <strong>Your data, working together.</strong>
+      <p>
+        {{ totalRecords() | number }} persisted records across
+        {{ sources().length }} sources.
+      </p>
+    </div>
+    <a class="text-link" routerLink="/data-explorer"
+      >Explore your data<prism-icon name="arrow"
+    /></a>
+  </div>
+  <div class="bottom-grid">
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>Data sources</h2>
+          <p>A clear view of your connections</p>
+        </div>
+        <a class="text-link" routerLink="/data-sources"
+          >View all<prism-icon name="arrow"
+        /></a>
+      </div>
+      <div class="source-list">
+        @for (source of sources().slice(0, 3); track source.id) {
+          <a class="source-row" routerLink="/data-sources"
+            ><span
+              class="provider-logo"
+              [class.stripe]="source.provider === 'STRIPE'"
+              [class.csv]="source.provider === 'CSV'"
+              >{{
+                source.provider === "SHOPIFY"
+                  ? "S"
+                  : source.provider === "STRIPE"
+                    ? "s"
+                    : "↥"
+              }}</span
+            >
+            <div class="source-row-name">
+              <strong>{{ source.name }}</strong
+              ><span>{{
+                source.provider === "CSV"
+                  ? "Campaign
+            spend"
+                  : source.provider === "SHOPIFY"
+                    ? "Commerce orders"
+                    : "Payments &
+            refunds"
+              }}</span>
+            </div>
+            <span class="mode-tag">{{
+              source.mode === "GENERATED"
+                ? "Generated"
+                : source.provider === "CSV"
+                  ? "File upload"
+                  : "Live adapter"
+            }}</span>
+            <div class="source-freshness">
+              <prism-status [value]="source.status" /><small>{{
+                source.lastSuccess | date: "MMM d, h:mm a"
+              }}</small>
+            </div></a
+          >
+        }
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>Recent synchronization</h2>
+          <p>The latest activity in your workspace</p>
+        </div>
+        <a class="text-link" routerLink="/synchronization"
+          >View history<prism-icon name="arrow"
+        /></a>
+      </div>
+      <div class="activity-list">
+        @for (run of runs(); track run.id) {
+          <div class="activity-row">
+            <span class="activity-icon" [class.failed]="run.status === 'FAILED'"
+              ><prism-icon
+                [name]="run.status === 'COMPLETED' ? 'check' : 'sync'"
+            /></span>
+            <div>
+              <strong>{{ run.source?.name }}</strong>
+              <p>
+                {{ run.processed | number }} records processed <span>·</span>
+                {{ run.queuedAt | date: "MMM d, h:mm a" }}
+              </p>
+            </div>
+            <prism-status [value]="run.status" />
+          </div>
+        } @empty {
+          <div class="empty-state">No synchronization activity yet.</div>
+        }
+      </div>
+    </section>
+  </div>
+  <div class="data-note">
+    <prism-icon name="clock" />Oldest source refresh:
+    {{ result.updatedAt | date: "MMM d, y, h:mm a" }} ·
+    {{ result.period.timezone }} · Reporting currency: USD
+  </div>
+}

@@ -1,0 +1,201 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  ANALYST
+  VIEWER
+}
+
+model Workspace {
+  id        String                 @id @default(cuid())
+  name      String
+  currency  String                 @default("USD")
+  timezone  String                 @default("UTC")
+  canonical String                 @default("SHOPIFY")
+  createdAt DateTime               @default(now())
+  members   WorkspaceMembership[]
+  sources   DataSourceConnection[]
+  orders    CommerceOrder[]
+  payments  PaymentRecord[]
+  campaigns CampaignSpend[]
+  imports   ImportBatch[]
+  reports   SavedReport[]
+  audit     AuditLog[]
+}
+
+model User {
+  id           String                @id @default(cuid())
+  name         String
+  email        String                @unique
+  passwordHash String
+  active       Boolean               @default(true)
+  createdAt    DateTime              @default(now())
+  members      WorkspaceMembership[]
+  sessions     Session[]
+  reports      SavedReport[]
+}
+
+model WorkspaceMembership {
+  userId      String
+  workspaceId String
+  role        Role
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([userId, workspaceId])
+}
+
+model Session {
+  id               String   @id @default(cuid())
+  userId           String
+  tokenHash        String   @unique
+  refreshHash      String   @unique
+  csrf             String
+  expiresAt        DateTime
+  refreshExpiresAt DateTime
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DataSourceConnection {
+  id          String          @id @default(cuid())
+  workspaceId String
+  name        String
+  provider    String
+  mode        String          @default("GENERATED")
+  status      String          @default("READY")
+  cursor      String?
+  lastSuccess DateTime?
+  createdAt   DateTime        @default(now())
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  runs        SyncRun[]
+  orders      CommerceOrder[]
+  payments    PaymentRecord[]
+  campaigns   CampaignSpend[]
+  imports     ImportBatch[]
+
+  @@unique([workspaceId, provider, mode])
+}
+
+model SyncRun {
+  id          String               @id @default(cuid())
+  sourceId    String
+  status      String               @default("QUEUED")
+  processed   Int                  @default(0)
+  created     Int                  @default(0)
+  updated     Int                  @default(0)
+  failed      Int                  @default(0)
+  attempt     Int                  @default(0)
+  error       String?
+  queuedAt    DateTime             @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  source      DataSourceConnection @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId, queuedAt])
+}
+
+model CommerceOrder {
+  id          String               @id @default(cuid())
+  workspaceId String
+  sourceId    String
+  externalId  String
+  occurredAt  DateTime
+  currency    String
+  gross       Int
+  discount    Int
+  refund      Int
+  status      String
+  updatedAt   DateTime             @updatedAt
+  workspace   Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  source      DataSourceConnection @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, externalId])
+  @@index([workspaceId, occurredAt, currency])
+}
+
+model PaymentRecord {
+  id          String               @id @default(cuid())
+  workspaceId String
+  sourceId    String
+  externalId  String
+  occurredAt  DateTime
+  currency    String
+  amount      Int
+  refund      Int
+  status      String
+  updatedAt   DateTime             @updatedAt
+  workspace   Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  source      DataSourceConnection @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, externalId])
+  @@index([workspaceId, occurredAt, currency])
+}
+
+model CampaignSpend {
+  id          String               @id @default(cuid())
+  workspaceId String
+  sourceId    String
+  externalId  String
+  occurredAt  DateTime
+  currency    String
+  campaign    String
+  channel     String
+  spend       Int
+  clicks      Int
+  impressions Int
+  updatedAt   DateTime             @updatedAt
+  workspace   Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  source      DataSourceConnection @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, externalId])
+  @@index([workspaceId, occurredAt, currency])
+}
+
+model ImportBatch {
+  id          String               @id @default(cuid())
+  workspaceId String
+  sourceId    String
+  filename    String
+  fingerprint String
+  status      String               @default("QUEUED")
+  imported    Int                  @default(0)
+  rejected    Int                  @default(0)
+  errors      Json                 @default("[]")
+  payload     String?
+  createdAt   DateTime             @default(now())
+  workspace   Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  source      DataSourceConnection @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, fingerprint])
+}
+
+model SavedReport {
+  id          String    @id @default(cuid())
+  workspaceId String
+  ownerId     String
+  name        String
+  definition  Json
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner       User      @relation(fields: [ownerId], references: [id])
+}
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  workspaceId String
+  actorId     String
+  action      String
+  resourceId  String
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+}
